@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>PvM Gear Prices</title>
+</head>
+<style>
+    body {
+        color: #adbac7;
+        background: #22272e;
+        font-family: helvetica, sans-serif;
+    }
+</style>
+
+<body>
+<template id="item-card">
+    <style>
+        .item-card {
+            border: 1px solid #444c56;
+            display: inline-block;
+            margin-bottom: 10px;
+        }
+
+        .item-card .item-title {
+            border: 1px solid #444c56;
+            text-align: center;
+            padding: 5px;
+        }
+
+        .item-card .item-sprite-container {
+            height: 32px;
+            padding: 10px;
+        }
+
+        .item-card .item-sprite-container .item-sprite {
+            width: 32px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .item-card .item-prices {
+            display: flex;
+        }
+
+        .item-card .item-prices span {
+            border: 1px solid #444c56;
+            width: 50%;
+            padding: 5px;
+            text-align: center;
+        }
+    </style>
+    <div class="item-card">
+        <div class="item-title">
+            <slot name="name">Item Name</slot>
+        </div>
+        <div class="item-sprite-container">
+            <span class="item-sprite"><slot name="sprite"></slot></span>
+        </div>
+        <div class="item-prices">
+            <span><slot name="low-price">1,000</slot></span>
+            <span><slot name="high-price">2,000</slot></span>
+        </div>
+    </div>
+</template>
+
+<script>
+    customElements.define('item-card',
+        class extends HTMLElement {
+            constructor() {
+                super();
+                const template = document.getElementById('item-card');
+
+                const shadowRoot = this.attachShadow({mode: 'open'});
+                shadowRoot.appendChild(template.content.cloneNode(true));
+            }
+        }
+    );
+    const categories = {
+        "Armor": [
+            21018, 21021, 21024, // ancestral
+            11826, 11828, 11830, // armadyl
+            11832, 11834, // bandos
+            24419, 24420, 24421, // inquisitor
+            26382, 26384, 26386, // torva
+            13235, 13237, 13239, // boots
+            12825, 12817, 12821, // spirit shields
+            26235, // zaryte vambrace
+            22003 // dragonfire ward
+        ],
+        "Weapons": [
+            11785, 22547, 20997, 21012, 26374, // ranged
+            11804, 11806, // godswords
+            11824, 13652, 22978, 13576, 22324, 22481, 22486, // misc
+            21006, 24417, 24422, // staffs
+        ],
+        "Ammunition": [
+            21944, 21946, 11212
+        ],
+        "Runes": [
+            560, 565, 21880
+        ],
+        "Orbs": [
+            24517, 24511, 24514
+        ],
+        "Jewellery": [
+            19553, 19550, 19544, 19547, // zenytes
+            24777 // blood shard
+        ],
+        "Consumables": [
+            385, 391, 397, 7060, 13441, // food
+            3024, 6685, 10925, 12695, 22461, // potions
+            2, // cannonball
+        ],
+        "Miscellaneous": [
+            13190
+        ]
+    }
+
+    async function fetchObjTypes() {
+        const response = await fetch('https://prices.runescape.wiki/api/v1/osrs/mapping', {headers: {'User-Agent': 'Hexagon#0001'}});
+        const mapping = await response.json();
+        return mapping.reduce(function (map, obj) {
+            map[obj.id] = obj;
+            return map;
+        }, {})
+    }
+
+    async function fetchPrices() {
+        const response = await fetch('https://prices.runescape.wiki/api/v1/osrs/latest', {headers: {'User-Agent': 'Hexagon#0001'}});
+        return response.json()
+    }
+
+    (async function () {
+        const objTypes = await fetchObjTypes();
+        const prices = await fetchPrices();
+
+        const priceFormatter = new Intl.NumberFormat('en-US', {
+            currencySign: undefined,
+        })
+
+        for (const category of Object.keys(categories)) {
+            const title = document.createElement('h2');
+            title.innerText = category;
+            document.body.appendChild(title);
+
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+
+            for (const objId of categories[category]) {
+                const objType = objTypes[objId];
+
+                const card = document.createElement('item-card');
+                const priceData = prices.data[objType.id];
+                const sprite = `https://oldschool.runescape.wiki/images/a/a2/${objType.icon.replaceAll(' ', '_')}`;
+                const low = priceFormatter.format(priceData.low);
+                const high = priceFormatter.format(priceData.high);
+                card.innerHTML = `
+                            <div slot="name">${objType.name}</div>
+                            <img slot="sprite" src="${sprite}">
+                            <span slot="low-price">${low}</span>
+                            <span slot="high-price">${high}</span>
+                `;
+                container.appendChild(card);
+            }
+        }
+    })()
+</script>
+</body>
+</html>
